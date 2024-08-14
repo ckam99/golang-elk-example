@@ -1,0 +1,69 @@
+version: '3'
+services:
+  # Application
+  golang-app:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    container_name: golang-app
+    volumes:
+      - logs_volume:/app/logs
+    ports:
+      - "8888:8888"
+    depends_on:
+      - elasticsearch
+  filebeat:
+    image: filebeat:latest
+    build:
+      context: filebeat
+      dockerfile: Dockerfile
+    volumes:
+      - logs_volume:/app/logs
+    command: filebeat -c /etc/filebeat/filebeat.yml -e -d "*" -strict.perms=false
+    depends_on:
+      - golang-app
+
+  # ELK Server
+  logstash:
+    image: logstash:latest
+    restart: always
+    #ports:
+    #  - 5959:5959
+    #  - 5044:5044
+    build:
+      context: logstash
+      dockerfile: Dockerfile
+    depends_on:
+      - elasticsearch
+    volumes:
+      - logs_volume:/logs:ro
+  elasticsearch:
+    image: docker.io/library/elasticsearch:7.17.0
+    restart: always
+    ports:
+      - 9200:9200
+    environment:
+      - discovery.type=single-node
+      - http.host=0.0.0.0
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms750m -Xmx750m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_volume:/usr/share/elasticsearch/data
+  kibana:
+    image: kibana:latest
+    build:
+      context: kibana
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+      - logstash
+volumes:
+  elasticsearch_volume:
+  logs_volume:

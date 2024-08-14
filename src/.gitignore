@@ -1,0 +1,6 @@
+.idea
+go.sum
+*test*.sql
+.devcontainer
+tmp
+.vscode
